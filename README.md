@@ -6,9 +6,11 @@ monorepo). Mirrors `apps/bot`'s shape: plain Node `http` server, `x-internal-key
 no framework, no database of its own — a stateless proxy in front of Ory Kratos, the
 Telegram Bot API, and S3-compatible object storage (RustFS in dev).
 
-Each consuming app (currently just `pandc-web`) keeps its own `/signin` UI and its own
+Each consuming app (`pandc-web` and `apps/catalog`) keeps its own `/signin` UI and its own
 NextAuth session issuance — this service only replaces the *admin-side* Kratos/Telegram
-calls that used to live directly in each app.
+calls that used to live directly in each app. App-specific business logic (e.g. catalog's
+admin-role bootstrap, Telegram bio/channel backfill, nickname whitespace healing) stays in
+the calling app, applied as follow-up `PATCH /identities/:id` calls after login.
 
 ## Endpoints
 
@@ -20,8 +22,10 @@ All except `/health` require header `X-Internal-Key: <AUTH_INTERNAL_KEY>`.
 | `POST /telegram/widget-login` | `{params}` | verify Telegram Login Widget HMAC, find-or-create the Kratos identity |
 | `POST /telegram/miniapp-login` | `{initData}` | verify Mini App initData, find-or-create the Kratos identity |
 | `GET /telegram/chat-member` | `?chatId=&userId=` | raw Telegram `getChatMember` status (caller decides authorization) |
-| `GET /identities/:id` | — | full profile traits |
-| `PATCH /identities/:id` | `{nickname?,about?,avatarUrl?,coverUrl?,links?}` | trait merge-update |
+| `GET /identities/:id` | — | full profile traits (incl. `role`, `createdAt`) |
+| `PATCH /identities/:id` | `{nickname?,about?,avatarUrl?,coverUrl?,links?,role?}` | trait merge-update |
+| `DELETE /identities/:id` | — | permanently delete the identity (idempotent — 404 counts as success) |
+| `GET /identities/:id/passkeys` | — | list registered WebAuthn credentials |
 | `GET /identities/by-nickname/:nickname` | — | `{kratosId, tgId}` |
 | `GET /identities` | `?q=` | list all, or nickname substring search |
 | `POST /identities/batch` | `{ids}` | batch profile lookup |

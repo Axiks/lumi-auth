@@ -15,6 +15,8 @@ export interface KratosIdentity {
   avatarUrl: string | null
   coverUrl: string | null
   links: KratosProfileLink[]
+  role: string | null
+  createdAt: string | null
 }
 
 interface KratosTraits {
@@ -24,6 +26,7 @@ interface KratosTraits {
   cover_url?: string
   about?: string
   links?: { name?: string; url?: string }[]
+  role?: string
 }
 
 interface KratosIdentityRecord {
@@ -31,20 +34,24 @@ interface KratosIdentityRecord {
   schema_id?: string
   state?: string
   traits?: KratosTraits
+  created_at?: string
 }
 
-function mapTraits(kratosId: string, traits: KratosTraits): KratosIdentity {
+function mapRecord(rec: KratosIdentityRecord): KratosIdentity {
+  const traits = rec.traits ?? {}
   const links = (traits.links ?? [])
     .filter((l): l is { name?: string; url: string } => typeof l?.url === "string" && l.url.length > 0)
     .map(l => ({ name: l.name ?? "", url: l.url }))
   return {
-    kratosId,
+    kratosId: rec.id,
     tgId: traits.telegram_id ?? null,
     nickname: traits.nickname ?? null,
     about: traits.about ?? null,
     avatarUrl: traits.avatar_url ?? null,
     coverUrl: traits.cover_url ?? null,
     links,
+    role: traits.role ?? null,
+    createdAt: rec.created_at ?? null,
   }
 }
 
@@ -52,7 +59,7 @@ export async function getIdentity(kratosId: string): Promise<KratosIdentity | nu
   const res = await fetch(`${ADMIN}/admin/identities/${encodeURIComponent(kratosId)}`, { cache: "no-store" })
   if (!res.ok) return null
   const data = await res.json() as KratosIdentityRecord
-  return mapTraits(kratosId, data.traits ?? {})
+  return mapRecord(data)
 }
 
 // Read-modify-write trait merge — never clobbers telegram_id or any field not in `patch`.
@@ -65,6 +72,7 @@ export async function updateTraits(kratosId: string, patch: {
   avatarUrl?: string | null
   coverUrl?: string | null
   links?: KratosProfileLink[]
+  role?: string
 }): Promise<boolean> {
   const res = await fetch(`${ADMIN}/admin/identities/${encodeURIComponent(kratosId)}`, { cache: "no-store" })
   if (!res.ok) return false
@@ -76,6 +84,7 @@ export async function updateTraits(kratosId: string, patch: {
   if (patch.avatarUrl !== undefined) traits.avatar_url = patch.avatarUrl ?? undefined
   if (patch.coverUrl !== undefined) traits.cover_url = patch.coverUrl ?? undefined
   if (patch.links !== undefined) traits.links = patch.links.map(l => ({ name: l.name, url: l.url }))
+  if (patch.role !== undefined) traits.role = patch.role
 
   const put = await fetch(`${ADMIN}/admin/identities/${encodeURIComponent(kratosId)}`, {
     method: "PUT",
@@ -84,6 +93,15 @@ export async function updateTraits(kratosId: string, patch: {
     body: JSON.stringify({ schema_id: identity.schema_id, state: identity.state ?? "active", traits }),
   })
   return put.ok
+}
+
+// Permanently delete a Kratos identity (account). 404 is treated as already-gone (idempotent).
+export async function deleteIdentity(kratosId: string): Promise<boolean> {
+  const res = await fetch(`${ADMIN}/admin/identities/${encodeURIComponent(kratosId)}`, {
+    method: "DELETE",
+    cache: "no-store",
+  })
+  return res.ok || res.status === 404
 }
 
 export async function createIdentity(params: {
@@ -124,17 +142,12 @@ async function listAllIdentities(): Promise<KratosIdentityRecord[]> {
   return Array.isArray(data) ? data : (data.identities ?? [])
 }
 
-export interface WebUserSummary {
-  kratosId: string
-  tgId: string | null
-  nickname: string | null
-  avatarUrl: string | null
-  about: string | null
-  links: KratosProfileLink[]
-}
+// Same shape as KratosIdentity — kept as a separate name for callers that conceptually
+// want "a user summary" rather than "the identity I asked for by id".
+export type WebUserSummary = KratosIdentity
 
 function toSummary(rec: KratosIdentityRecord): WebUserSummary {
-  return mapTraits(rec.id, rec.traits ?? {})
+  return mapRecord(rec)
 }
 
 export async function findByTgId(tgId: string): Promise<WebUserSummary | null> {

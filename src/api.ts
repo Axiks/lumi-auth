@@ -116,12 +116,20 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     return json(res, 200, identity)
   }
 
-  // PATCH /identities/{id} { nickname?, about?, avatarUrl?, coverUrl?, links? }
+  // PATCH /identities/{id} { nickname?, about?, avatarUrl?, coverUrl?, links?, role? }
   if (req.method === "PATCH" && (m = /^\/identities\/([^/]+)$/.exec(path))) {
     const kratosId = decodeURIComponent(m[1])
     const body = await readJsonBody(req)
     const ok = await kratos.updateTraits(kratosId, body)
     if (!ok) return json(res, 502, { error: "kratos_update_failed" })
+    return json(res, 204, undefined)
+  }
+
+  // DELETE /identities/{id} — permanently deletes the account.
+  if (req.method === "DELETE" && (m = /^\/identities\/([^/]+)$/.exec(path))) {
+    const kratosId = decodeURIComponent(m[1])
+    const ok = await kratos.deleteIdentity(kratosId)
+    if (!ok) return json(res, 502, { error: "kratos_delete_failed" })
     return json(res, 204, undefined)
   }
 
