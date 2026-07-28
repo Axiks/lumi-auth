@@ -1,0 +1,20 @@
+{
+  "name": "pandc-auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0",
+    "@tma.js/init-data-node": "^2.0.7",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.0"
+  }
+}
