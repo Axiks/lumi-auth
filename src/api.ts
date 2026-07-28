@@ -103,6 +103,12 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     return json(res, 200, result)
   }
 
+  // GET /identities/{id}/passkeys
+  if (req.method === "GET" && (m = /^\/identities\/([^/]+)\/passkeys$/.exec(path))) {
+    const passkeys = await kratos.listPasskeys(decodeURIComponent(m[1]))
+    return json(res, 200, passkeys)
+  }
+
   // GET /identities/{id}
   if (req.method === "GET" && (m = /^\/identities\/([^/]+)$/.exec(path))) {
     const identity = await kratos.getIdentity(decodeURIComponent(m[1]))

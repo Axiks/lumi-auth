@@ -169,3 +169,27 @@ export async function batchProfiles(ids: string[]): Promise<Record<string, WebUs
   }
   return out
 }
+
+export interface KratosPasskey {
+  id: string
+  display_name: string
+  added_at: string
+}
+
+// Lists a user's registered WebAuthn passkeys (id + display name + added date) — used by
+// the security settings page. Returns [] on any error.
+export async function listPasskeys(kratosId: string): Promise<KratosPasskey[]> {
+  try {
+    const res = await fetch(
+      `${ADMIN}/admin/identities/${encodeURIComponent(kratosId)}?include_credential=webauthn`,
+      { cache: "no-store" },
+    )
+    if (!res.ok) return []
+    const data = await res.json() as {
+      credentials?: { webauthn?: { config?: { credentials?: KratosPasskey[] } } }
+    }
+    return data.credentials?.webauthn?.config?.credentials ?? []
+  } catch {
+    return []
+  }
+}
