@@ -51,3 +51,11 @@ npm run dev
 ```bash
 docker build -t pandc-auth .
 ```
+
+## CI/CD
+
+`.github/workflows/build-deploy.yml` (push to `master`) and `build-deploy-dev.yml` (push to
+`development`) build and push `ghcr.io/axiks/pandc-auth:latest`/`:dev` + the commit SHA tag.
+Both need a `GHCR_TOKEN` repo secret (a PAT with `write:packages`) — same as `pandc-web`'s.
+The `pandc-frontend` monorepo's `docker-compose.prod.yml`/`docker-compose.dev-env.yml` pull
+these images directly; there's no build step on that side.
