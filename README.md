@@ -1,12 +1,12 @@
-# pandc-auth
+# lumi-auth
 
 Standalone internal service that centralizes Kratos-admin/Telegram-Bot-API/WebAuthn-bridging
-logic previously duplicated between `pandc-web` and `apps/catalog` (in the `pandc-frontend`
-monorepo). Mirrors `apps/bot`'s shape: plain Node `http` server, `x-internal-key` auth,
-no framework, no database of its own — a stateless proxy in front of Ory Kratos, the
+logic previously duplicated between `include-cookie-frontend` and `apps/catalog` (in the
+`lumispace` monorepo). Mirrors `apps/bot`'s shape: plain Node `http` server, `x-internal-key`
+auth, no framework, no database of its own — a stateless proxy in front of Ory Kratos, the
 Telegram Bot API, and S3-compatible object storage (RustFS in dev).
 
-Each consuming app (`pandc-web` and `apps/catalog`) keeps its own `/signin` UI and its own
+Each consuming app (`include-cookie-frontend` and `apps/catalog`) keeps its own `/signin` UI and its own
 NextAuth session issuance — this service only replaces the *admin-side* Kratos/Telegram
 calls that used to live directly in each app. App-specific business logic (e.g. catalog's
 admin-role bootstrap, Telegram bio/channel backfill, nickname whitespace healing) stays in
@@ -49,13 +49,13 @@ npm run dev
 ## Docker
 
 ```bash
-docker build -t pandc-auth .
+docker build -t lumi-auth .
 ```
 
 ## CI/CD
 
 `.github/workflows/build-deploy.yml` (push to `master`) and `build-deploy-dev.yml` (push to
-`development`) build and push `ghcr.io/axiks/pandc-auth:latest`/`:dev` + the commit SHA tag.
-Both need a `GHCR_TOKEN` repo secret (a PAT with `write:packages`) — same as `pandc-web`'s.
-The `pandc-frontend` monorepo's `docker-compose.prod.yml`/`docker-compose.dev-env.yml` pull
-these images directly; there's no build step on that side.
+`development`) build and push `ghcr.io/axiks/lumi-auth:latest`/`:dev` + the commit SHA tag.
+Both need a `GHCR_TOKEN` repo secret (a PAT with `write:packages`) — same as
+`include-cookie-frontend`'s. The `lumispace` monorepo's `docker-compose.prod.yml`/
+`docker-compose.dev-env.yml` pull these images directly; there's no build step on that side.

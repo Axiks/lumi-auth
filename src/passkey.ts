@@ -5,7 +5,7 @@ const ADMIN = config.kratosAdminUrl
 
 // Mints a temporary `ory_kratos_session` cookie for `kratosId` via the admin recovery-code
 // flow, so we can drive the settings flow (WebAuthn registration/removal) on the user's
-// behalf without them re-authenticating. Ported as-is from pandc-web's pre-extraction
+// behalf without them re-authenticating. Ported as-is from include-cookie-frontend's pre-extraction
 // app/api/kratos/settings/route.ts.
 async function getSessionCookie(kratosId: string): Promise<string> {
   const codeRes = await fetch(`${ADMIN}/admin/recovery/code`, {

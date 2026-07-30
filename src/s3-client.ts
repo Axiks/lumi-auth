@@ -1,5 +1,5 @@
-// Vendored from packages/shared/src/cdn/{s3-client,file.service}.ts (pandc-frontend monorepo)
-// — same tradeoff as pandc-web's own vendored copy: no shared package, just the ~70 lines
+// Vendored from packages/shared/src/cdn/{s3-client,file.service}.ts (lumispace monorepo)
+// — same tradeoff as include-cookie-frontend's own vendored copy: no shared package, just the ~70 lines
 // this service actually needs (only saveFile, for the eager Telegram-avatar download).
 import {
   S3Client, PutObjectCommand, CreateBucketCommand,

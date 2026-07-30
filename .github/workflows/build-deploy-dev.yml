@@ -5,7 +5,7 @@ on:
     branches: [development]
 
 env:
-  IMAGE: ghcr.io/axiks/pandc-auth
+  IMAGE: ghcr.io/axiks/lumi-auth
 
 jobs:
   build:

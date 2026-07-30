@@ -131,7 +131,7 @@ export async function createIdentity(params: {
 }
 
 // No caching here — this service is a stateless proxy; callers own any caching they want
-// (mirrors how pandc-web already wraps its identity-list calls in unstable_cache today).
+// (mirrors how include-cookie-frontend already wraps its identity-list calls in unstable_cache today).
 async function listAllIdentities(): Promise<KratosIdentityRecord[]> {
   const res = await fetch(`${ADMIN}/admin/identities?per_page=500&page_size=500`, { cache: "no-store" })
   if (!res.ok) {

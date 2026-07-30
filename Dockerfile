@@ -1,9 +1,9 @@
 # syntax=docker.io/docker/dockerfile:1
 # Standalone build — context = repo ROOT.
-#   docker build -t pandc-auth .
+#   docker build -t lumi-auth .
 #
 # No build step — runs straight from TypeScript via tsx (mirrors apps/bot's pattern in the
-# pandc-frontend monorepo). No database of its own — a stateless proxy in front of Kratos
+# lumispace monorepo). No database of its own — a stateless proxy in front of Kratos
 # (admin API), the Telegram Bot API, and S3.
 
 FROM node:25-slim AS base
