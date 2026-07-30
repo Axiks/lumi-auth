@@ -1,10 +1,31 @@
+import { randomUUID } from "node:crypto"
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http"
 import { config } from "./config.js"
 import * as kratos from "./kratos.js"
 import * as passkey from "./passkey.js"
 import * as hydra from "./hydra.js"
-import { verifyWidget, verifyMiniapp, getChatMember, TelegramVerifyError } from "./telegram.js"
+import { verifyWidget, verifyMiniapp, getChatMember, getAvatarBytesByTgId, TelegramVerifyError } from "./telegram.js"
 import { findOrCreateFromTelegram } from "./identities.js"
+import { saveFile, deleteFile } from "./s3-client.js"
+
+const AVATAR_MIME: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+}
+const MAX_AVATAR_BYTES = 8 * 1024 * 1024
+
+function avatarMime(ext: string): string {
+  return AVATAR_MIME[ext.toLowerCase()] ?? "application/octet-stream"
+}
+
+// Custom uploads are stored as a bare filename; an external URL (e.g. still pointing at
+// Telegram in some legacy state) is never ours to delete.
+function isCustomAvatar(avatarUrl: string | null): avatarUrl is string {
+  return !!avatarUrl && !avatarUrl.startsWith("http")
+}
 
 // Internal REST surface for web/catalog (Docker network only — the port is never
 // published). Auth: x-internal-key shared secret, mirroring apps/bot/src/api.ts and
@@ -171,6 +192,73 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
       return json(res, result.status, result.data)
     } catch (e) {
       console.error("[api] registration-remove error:", e)
+      return json(res, 500, { error: "internal" })
+    }
+  }
+
+  // POST /identities/{id}/avatar { data: base64, ext }
+  if (req.method === "POST" && (m = /^\/identities\/([^/]+)\/avatar$/.exec(path))) {
+    const kratosId = decodeURIComponent(m[1])
+    const body = await readJsonBody(req)
+    const data = typeof body.data === "string" ? body.data : ""
+    const ext = typeof body.ext === "string" ? body.ext.replace(/[^a-z0-9]/gi, "").toLowerCase() : ""
+    if (!data || !ext) return json(res, 400, { error: "data_and_ext_required" })
+    const buffer = Buffer.from(data, "base64")
+    if (buffer.length === 0) return json(res, 400, { error: "empty_file" })
+    if (buffer.length > MAX_AVATAR_BYTES) return json(res, 413, { error: "file_too_large" })
+    try {
+      const current = await kratos.getIdentity(kratosId)
+      if (isCustomAvatar(current?.avatarUrl ?? null)) {
+        await deleteFile("avatars", current!.avatarUrl!).catch(() => {})
+      }
+      const filename = `${randomUUID()}.${ext}`
+      await saveFile(buffer, "avatars", filename, avatarMime(ext))
+      const ok = await kratos.updateTraits(kratosId, { avatarUrl: filename })
+      if (!ok) return json(res, 502, { error: "kratos_update_failed" })
+      return json(res, 200, { filename })
+    } catch (e) {
+      console.error("[api] avatar upload error:", e)
+      return json(res, 500, { error: "internal" })
+    }
+  }
+
+  // DELETE /identities/{id}/avatar
+  if (req.method === "DELETE" && (m = /^\/identities\/([^/]+)\/avatar$/.exec(path))) {
+    const kratosId = decodeURIComponent(m[1])
+    try {
+      const current = await kratos.getIdentity(kratosId)
+      if (isCustomAvatar(current?.avatarUrl ?? null)) {
+        await deleteFile("avatars", current!.avatarUrl!).catch(() => {})
+      }
+      const ok = await kratos.updateTraits(kratosId, { avatarUrl: "" })
+      if (!ok) return json(res, 502, { error: "kratos_update_failed" })
+      return json(res, 204, undefined)
+    } catch (e) {
+      console.error("[api] avatar delete error:", e)
+      return json(res, 500, { error: "internal" })
+    }
+  }
+
+  // POST /identities/{id}/avatar/from-telegram — reads the identity's own tgId, never a
+  // client-supplied one.
+  if (req.method === "POST" && (m = /^\/identities\/([^/]+)\/avatar\/from-telegram$/.exec(path))) {
+    const kratosId = decodeURIComponent(m[1])
+    try {
+      const current = await kratos.getIdentity(kratosId)
+      if (!current) return json(res, 404, { error: "not_found" })
+      if (!current.tgId) return json(res, 400, { error: "no_telegram_linked" })
+      const img = await getAvatarBytesByTgId(current.tgId)
+      if (!img) return json(res, 404, { error: "avatar_not_found" })
+      if (isCustomAvatar(current.avatarUrl)) {
+        await deleteFile("avatars", current.avatarUrl!).catch(() => {})
+      }
+      const filename = `${randomUUID()}.${img.ext}`
+      await saveFile(img.bytes, "avatars", filename, avatarMime(img.ext))
+      const ok = await kratos.updateTraits(kratosId, { avatarUrl: filename })
+      if (!ok) return json(res, 502, { error: "kratos_update_failed" })
+      return json(res, 200, { filename })
+    } catch (e) {
+      console.error("[api] avatar from-telegram error:", e)
       return json(res, 500, { error: "internal" })
     }
   }

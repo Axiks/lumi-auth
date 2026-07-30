@@ -94,3 +94,35 @@ export async function downloadAvatarToS3(photoUrl: string): Promise<string | nul
     return null
   }
 }
+
+// Fetches a Telegram user's CURRENT profile photo bytes on demand (no photo_url in hand,
+// unlike the login-time widget/miniapp flows above) — used for the "refresh avatar from
+// Telegram" action. getChat -> big_file_id -> getFile -> download.
+export async function getAvatarBytesByTgId(tgId: string): Promise<{ bytes: Uint8Array; ext: string } | null> {
+  try {
+    const chatRes = await fetch(
+      `https://api.telegram.org/bot${config.botToken}/getChat?chat_id=${encodeURIComponent(tgId)}`,
+    )
+    if (!chatRes.ok) return null
+    const chat = await chatRes.json() as { ok: boolean; result?: { photo?: { big_file_id?: string } } }
+    const fileId = chat.result?.photo?.big_file_id
+    if (!fileId) return null
+
+    const fileRes = await fetch(
+      `https://api.telegram.org/bot${config.botToken}/getFile?file_id=${encodeURIComponent(fileId)}`,
+    )
+    if (!fileRes.ok) return null
+    const file = await fileRes.json() as { ok: boolean; result?: { file_path?: string } }
+    const path = file.result?.file_path
+    if (!path) return null
+
+    const imgRes = await fetch(`https://api.telegram.org/file/bot${config.botToken}/${path}`)
+    if (!imgRes.ok) return null
+    const bytes = new Uint8Array(await imgRes.arrayBuffer())
+    const ext = (path.split(".").pop() || "jpg").toLowerCase()
+    return { bytes, ext }
+  } catch (e) {
+    console.warn("[telegram] getAvatarBytesByTgId failed:", e)
+    return null
+  }
+}

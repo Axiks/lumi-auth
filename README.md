@@ -25,6 +25,9 @@ All except `/health` require header `X-Internal-Key: <AUTH_INTERNAL_KEY>`.
 | `GET /identities/:id` | — | full profile traits (incl. `role`, `createdAt`) |
 | `PATCH /identities/:id` | `{nickname?,about?,avatarUrl?,coverUrl?,links?,role?}` | trait merge-update |
 | `DELETE /identities/:id` | — | permanently delete the identity (idempotent — 404 counts as success) |
+| `POST /identities/:id/avatar` | `{data: base64, ext}` | upload a new avatar (deletes the old custom one first), sets the trait, returns `{filename}` |
+| `DELETE /identities/:id/avatar` | — | delete the current custom avatar and clear the trait |
+| `POST /identities/:id/avatar/from-telegram` | — | pull the identity's current Telegram profile photo, same replace semantics as upload |
 | `GET /identities/:id/passkeys` | — | list registered WebAuthn credentials |
 | `GET /identities/by-nickname/:nickname` | — | `{kratosId, tgId}` |
 | `GET /identities` | `?q=` | list all, or nickname substring search |

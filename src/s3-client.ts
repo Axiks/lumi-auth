@@ -2,7 +2,7 @@
 // — same tradeoff as include-cookie-frontend's own vendored copy: no shared package, just the ~70 lines
 // this service actually needs (only saveFile, for the eager Telegram-avatar download).
 import {
-  S3Client, PutObjectCommand, CreateBucketCommand,
+  S3Client, PutObjectCommand, DeleteObjectCommand, CreateBucketCommand,
 } from "@aws-sdk/client-s3"
 import { config } from "./config.js"
 
@@ -25,6 +25,7 @@ export async function saveFile(
   buffer: Uint8Array,
   subCatalog: string,
   filename: string,
+  contentType = "image/png",
 ): Promise<string> {
   const put = () =>
     s3.send(
@@ -32,7 +33,7 @@ export async function saveFile(
         Bucket: config.s3Bucket,
         Key: `${subCatalog}/${filename}`,
         Body: buffer,
-        ContentType: "image/png",
+        ContentType: contentType,
       }),
     )
 
@@ -50,4 +51,14 @@ export async function saveFile(
     await put()
   }
   return filename
+}
+
+// Deleting a missing key is a no-op by S3 semantics — safe to call unconditionally.
+export async function deleteFile(subCatalog: string, filename: string): Promise<void> {
+  await s3.send(
+    new DeleteObjectCommand({
+      Bucket: config.s3Bucket,
+      Key: `${subCatalog}/${filename}`,
+    }),
+  )
 }
