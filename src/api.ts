@@ -3,7 +3,6 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { config } from "./config.js"
 import * as kratos from "./kratos.js"
 import * as passkey from "./passkey.js"
-import * as hydra from "./hydra.js"
 import { verifyWidget, verifyMiniapp, getChatMember, getAvatarBytesByTgId, TelegramVerifyError } from "./telegram.js"
 import { findOrCreateFromTelegram } from "./identities.js"
 import { saveFile, deleteFile } from "./s3-client.js"
@@ -260,90 +259,6 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
     } catch (e) {
       console.error("[api] avatar from-telegram error:", e)
       return json(res, 500, { error: "internal" })
-    }
-  }
-
-  // GET /hydra/login/{challenge}
-  if (req.method === "GET" && (m = /^\/hydra\/login\/([^/]+)$/.exec(path))) {
-    try {
-      const result = await hydra.getLoginRequest(decodeURIComponent(m[1]))
-      return json(res, 200, result)
-    } catch (e) {
-      console.error("[api] hydra login-request error:", e)
-      return json(res, 502, { error: "hydra_unreachable" })
-    }
-  }
-
-  // POST /hydra/login/{challenge}/accept { subject, remember?, remember_for? }
-  if (req.method === "POST" && (m = /^\/hydra\/login\/([^/]+)\/accept$/.exec(path))) {
-    const body = await readJsonBody(req)
-    const subject = typeof body.subject === "string" ? body.subject : ""
-    if (!subject) return json(res, 400, { error: "subject_required" })
-    try {
-      const result = await hydra.acceptLoginRequest(decodeURIComponent(m[1]), {
-        subject,
-        remember: body.remember as boolean | undefined,
-        remember_for: body.remember_for as number | undefined,
-      })
-      return json(res, 200, result)
-    } catch (e) {
-      console.error("[api] hydra login-accept error:", e)
-      return json(res, 502, { error: "hydra_unreachable" })
-    }
-  }
-
-  // GET /hydra/consent/{challenge}
-  if (req.method === "GET" && (m = /^\/hydra\/consent\/([^/]+)$/.exec(path))) {
-    try {
-      const result = await hydra.getConsentRequest(decodeURIComponent(m[1]))
-      return json(res, 200, result)
-    } catch (e) {
-      console.error("[api] hydra consent-request error:", e)
-      return json(res, 502, { error: "hydra_unreachable" })
-    }
-  }
-
-  // POST /hydra/consent/{challenge}/accept { grant_scope?, grant_access_token_audience?, remember?, remember_for?, session? }
-  if (req.method === "POST" && (m = /^\/hydra\/consent\/([^/]+)\/accept$/.exec(path))) {
-    const body = await readJsonBody(req)
-    try {
-      const result = await hydra.acceptConsentRequest(decodeURIComponent(m[1]), {
-        grant_scope: body.grant_scope as string[] | undefined,
-        grant_access_token_audience: body.grant_access_token_audience as string[] | undefined,
-        remember: body.remember as boolean | undefined,
-        remember_for: body.remember_for as number | undefined,
-        session: body.session as { id_token?: Record<string, unknown> } | undefined,
-      })
-      return json(res, 200, result)
-    } catch (e) {
-      console.error("[api] hydra consent-accept error:", e)
-      return json(res, 502, { error: "hydra_unreachable" })
-    }
-  }
-
-  // POST /hydra/consent/{challenge}/reject { error?, error_description? }
-  if (req.method === "POST" && (m = /^\/hydra\/consent\/([^/]+)\/reject$/.exec(path))) {
-    const body = await readJsonBody(req)
-    try {
-      const result = await hydra.rejectConsentRequest(decodeURIComponent(m[1]), {
-        error: body.error as string | undefined,
-        error_description: body.error_description as string | undefined,
-      })
-      return json(res, 200, result)
-    } catch (e) {
-      console.error("[api] hydra consent-reject error:", e)
-      return json(res, 502, { error: "hydra_unreachable" })
-    }
-  }
-
-  // POST /hydra/logout/{challenge}/accept
-  if (req.method === "POST" && (m = /^\/hydra\/logout\/([^/]+)\/accept$/.exec(path))) {
-    try {
-      const result = await hydra.acceptLogoutRequest(decodeURIComponent(m[1]))
-      return json(res, 200, result)
-    } catch (e) {
-      console.error("[api] hydra logout-accept error:", e)
-      return json(res, 502, { error: "hydra_unreachable" })
     }
   }
 
