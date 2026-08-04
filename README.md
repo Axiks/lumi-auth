@@ -3,8 +3,15 @@
 Standalone internal service that centralizes Kratos-admin/Telegram-Bot-API/WebAuthn-bridging
 logic previously duplicated between `include-cookie-frontend` and `apps/catalog` (in the
 `lumispace` monorepo). Mirrors `apps/bot`'s shape: plain Node `http` server, `x-internal-key`
-auth, no framework, no database of its own — a stateless proxy in front of Ory Kratos, Ory
-Hydra, the Telegram Bot API, and S3-compatible object storage (RustFS in dev).
+auth, no framework, no database of its own — a stateless proxy in front of Ory Kratos, the
+Telegram Bot API, and S3-compatible object storage (RustFS in dev).
+
+> **Hydra/OAuth2 support was removed 2026-08-04.** This service used to proxy Ory Hydra's
+> admin API (login/consent/logout challenges) for the community site's OAuth2 login UI; that
+> UI was deleted on 2026-07-31, leaving the endpoints with no caller, and Hydra itself is no
+> longer deployed. The full previous state lives on branch **`archive/hydra`** — restore from
+> there if OAuth2 comes back (see also the `archive/hydra` branch in the `lumispace` repo,
+> which holds the matching infrastructure).
 
 Each consuming app (`include-cookie-frontend` and `apps/catalog`) keeps its own `/signin` UI and its own
 NextAuth session issuance — this service only replaces the *admin-side* Kratos/Telegram
@@ -35,18 +42,11 @@ All except `/health` require header `X-Internal-Key: <AUTH_INTERNAL_KEY>`.
 | `GET /passkey/registration-flow` | `?kratosId=` | init the Kratos settings flow (WebAuthn registration) |
 | `POST /passkey/registration-flow` | `{flowId,token,body}` | submit the flow |
 | `POST /passkey/registration-remove` | `{kratosId,credentialId}` | remove a credential |
-| `GET /hydra/login/:challenge` | — | fetch a Hydra OAuth2 login request |
-| `POST /hydra/login/:challenge/accept` | `{subject,remember?,remember_for?}` | accept it, returns `{redirect_to}` |
-| `GET /hydra/consent/:challenge` | — | fetch a Hydra OAuth2 consent request |
-| `POST /hydra/consent/:challenge/accept` | `{grant_scope?,grant_access_token_audience?,remember?,remember_for?,session?}` | accept it, returns `{redirect_to}` |
-| `POST /hydra/consent/:challenge/reject` | `{error?,error_description?}` | reject it, returns `{redirect_to}` |
-| `POST /hydra/logout/:challenge/accept` | — | accept a Hydra OAuth2 logout request, returns `{redirect_to}` |
 
 ## Env
 
 See `.env.example`. Needs `KRATOS_ADMIN_URL`/`KRATOS_PUBLIC_URL` (shared Kratos instance),
-`HYDRA_ADMIN_URL` (shared Hydra instance), `BOT_TOKEN`, S3 credentials, and
-`AUTH_INTERNAL_KEY` (shared secret with calling apps).
+`BOT_TOKEN`, S3 credentials, and `AUTH_INTERNAL_KEY` (shared secret with calling apps).
 
 ## Local dev
 
