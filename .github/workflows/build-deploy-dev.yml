@@ -21,7 +21,11 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          # The GHCR namespace this repo publishes to is `axiks` (see IMAGE above), which is
+          # NOT necessarily the repo owner — this repo can live in an org while its packages
+          # stay in that personal namespace. Pin the login to the namespace owner so a repo
+          # transfer can't change it out from under us.
+          username: Axiks
           password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Set up Docker Buildx
